@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MAXTV.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#0E1621">
+
+    <!-- Reduced Padding from 80 to 40 to fit more content on screen -->
+    <VerticalStackLayout
+        Padding="40"
+        Spacing="15"
+        VerticalOptions="Center">
+
+        <Label
+            Text="MAXTV"
+            FontSize="42"
+            FontAttributes="Bold"
+            TextColor="#E0E0E0"
+            HorizontalOptions="Center"
+            Margin="0,0,0,30" />
+
+        <Button
+            x:Name="LiveButton"
+            Text="Live TV"
+            Style="{StaticResource MenuButtonStyle}"
+            Clicked="OnLiveClicked" />
+
+        <Button
+            x:Name="MoviesButton"
+            Text="Movies"
+            Style="{StaticResource MenuButtonStyle}"
+            Clicked="OnMoviesClicked" />
+
+        <Button
+            x:Name="SeriesButton"
+            Text="Series"
+            Style="{StaticResource MenuButtonStyle}"
+            Clicked="OnSeriesClicked" />
+
+        <Button
+            x:Name="SettingsButton"
+            Text="Settings"
+            Style="{StaticResource MenuButtonStyle}"
+            Clicked="OnSettingsClicked" />
+
+    </VerticalStackLayout>
+
+</ContentPage>
