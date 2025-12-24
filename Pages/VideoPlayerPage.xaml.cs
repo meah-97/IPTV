@@ -73,6 +73,11 @@ public partial class VideoPlayerPage : ContentPage
             _ => AppSettings.MovieBufferMs
         };
 
+    private int GetBufferedSeconds(double progress)
+    {
+        return (int)((_bufferMs / 1000.0) * progress);
+    }
+
     private void PlayVideo()
     {
         if (string.IsNullOrWhiteSpace(_videoUrl))
@@ -95,7 +100,6 @@ public partial class VideoPlayerPage : ContentPage
 
         _mediaPlayer.SeekableChanged += OnSeekableChanged;
         _mediaPlayer.Opening += (s, e) => StartBuffering();
-        _mediaPlayer.Playing += (s, e) => StopBuffering();
         _mediaPlayer.EncounteredError += (s, e) => StopBuffering();
 
         _mediaPlayer.Buffering += (s, e) =>
@@ -164,7 +168,11 @@ public partial class VideoPlayerPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (BufferingLayout.IsVisible)
+            {
                 BufferingProgressBar.Progress = displayProgress;
+                if (displayProgress >= 1.0)
+                    StopBuffering();
+            }
         });
     }
 
@@ -174,7 +182,7 @@ public partial class VideoPlayerPage : ContentPage
             return;
 
         double progress = Math.Max(_realProgress, _simulatedProgress);
-        int bufferedSeconds = (int)((_bufferMs / 1000.0) * progress);
+        int bufferedSeconds = GetBufferedSeconds(progress);
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
