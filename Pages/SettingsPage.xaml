@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MAXTV.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#0E1621"
+    Title="Settings">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="24">
+
+            <Label
+                Text="Video Buffer Settings"
+                FontSize="22"
+                FontAttributes="Bold"
+                TextColor="White" />
+
+            <!-- LIVE -->
+            <Label Text="Live TV Buffer" FontSize="18" TextColor="White" />
+            <Button
+                x:Name="LiveBufferButton"
+                Clicked="OnLiveBufferClicked"
+                Focused="OnButtonFocused"
+                Unfocused="OnButtonUnfocused"
+                TextColor="White"
+                BackgroundColor="#1E2A38"
+                HeightRequest="60" />
+
+            <!-- MOVIES -->
+            <Label Text="Movies Buffer" FontSize="18" TextColor="White" />
+            <Button
+                x:Name="MovieBufferButton"
+                Clicked="OnMovieBufferClicked"
+                Focused="OnButtonFocused"
+                Unfocused="OnButtonUnfocused"
+                TextColor="White"
+                BackgroundColor="#1E2A38"
+                HeightRequest="60" />
+
+            <!-- SERIES -->
+            <Label Text="Series Buffer" FontSize="18" TextColor="White" />
+            <Button
+                x:Name="SeriesBufferButton"
+                Clicked="OnSeriesBufferClicked"
+                Focused="OnButtonFocused"
+                Unfocused="OnButtonUnfocused"
+                TextColor="White"
+                BackgroundColor="#1E2A38"
+                HeightRequest="60" />
+
+            <!-- DEBUG -->
+            <Label Text="Debug" FontSize="18" TextColor="White" />
+            <Button
+                x:Name="BufferDebugButton"
+                Clicked="OnBufferDebugClicked"
+                Focused="OnButtonFocused"
+                Unfocused="OnButtonUnfocused"
+                TextColor="White"
+                BackgroundColor="#1E2A38"
+                HeightRequest="60" />
+
+            <Label
+                Text="Press OK to cycle values"
+                FontSize="14"
+                TextColor="Gray" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

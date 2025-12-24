@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vlc="clr-namespace:LibVLCSharp.MAUI;assembly=LibVLCSharp.MAUI"
+             x:Class="MAXTV.Pages.VideoPlayerPage"
+             BackgroundColor="Black"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid>
+        <vlc:VideoView x:Name="videoView" HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand" />
+        <!-- DEBUG BUFFER INFO -->
+        <Label
+            x:Name="BufferInfoLabel"
+             Text="Buffer: -- sec"
+             FontSize="12"
+             TextColor="White"
+            BackgroundColor="#66000000"
+            Padding="6"
+            HorizontalOptions="End"
+            VerticalOptions="End"
+            Margin="12"
+            IsVisible="False"
+            ZIndex="99" />
+        <!-- Transparent Input Button for Remote Focus -->
+        <!-- Opacity 0.01 makes it invisible but interactive/focusable -->
+        <Button x:Name="OverlayInputButton"
+                BackgroundColor="Transparent"
+                Opacity="0.01"
+                HorizontalOptions="FillAndExpand"
+                VerticalOptions="FillAndExpand"
+                Clicked="OnOverlayInputClicked" />
+        
+        <!-- Buffering Progress -->
+        <VerticalStackLayout x:Name="BufferingLayout"
+                             HorizontalOptions="Center"
+                             VerticalOptions="Center"
+                             Spacing="10"
+                             InputTransparent="True"
+                             IsVisible="False"
+                             WidthRequest="300">
+            <Label x:Name="BufferingLabel"
+                   Text="Buffering..."
+                   TextColor="White"
+                   HorizontalOptions="Center"
+                   FontSize="14"/>
+            <ProgressBar x:Name="BufferingProgressBar"
+                         ProgressColor="#1E88E5"
+                         BackgroundColor="Gray"
+                         HeightRequest="4"
+                         Progress="0.0"/>
+        </VerticalStackLayout>
+
+        <!-- Controls Overlay -->
+        <Grid x:Name="ControlsGrid"
+              VerticalOptions="End"
+              BackgroundColor="#80000000"
+              Padding="20"
+              IsVisible="True"
+              ColumnDefinitions="*,*,*,*"
+              HeightRequest="100">
+            
+            <Button x:Name="RewindButton"
+                    Text="Rewind"
+                    Clicked="OnRewindClicked"
+                    Grid.Column="0"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    FontSize="12" />
+
+            <Button x:Name="PlayPauseButton"
+                    Text="Pause"
+                    Clicked="OnPlayPauseClicked"
+                    Grid.Column="1"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    FontSize="18"
+                    FontAttributes="Bold"/>
+
+            <Button Text="Stop"
+                    Clicked="OnStopClicked"
+                    Grid.Column="2"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    FontSize="12" />
+
+            <Button x:Name="FastForwardButton"
+                    Text="Fast Fwd"
+                    Clicked="OnFastForwardClicked"
+                    Grid.Column="3"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    FontSize="12" />
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

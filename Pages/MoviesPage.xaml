@@ -7,96 +7,75 @@
     Title="Movies">
 
     <Grid ColumnDefinitions="300,*">
-        <!-- Categories (ScrollView) -->
-        <ScrollView
-            Grid.Column="0"
-            BackgroundColor="#132235">
+
+        <!-- CATEGORIES (LEFT) -->
+        <ScrollView Grid.Column="0">
             <VerticalStackLayout
                 x:Name="CategoriesLayout"
-                Spacing="0">
+                Spacing="0"
+                Padding="0">
+
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
                         <Button
                             Text="{Binding CategoryName}"
-                            TextColor="#E0E0E0"
-                            BackgroundColor="Transparent"
-                            HeightRequest="60"
-                            FontSize="16"
                             Clicked="OnCategoryClicked"
-                            HorizontalOptions="Fill">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="Transparent" />
-                                            <Setter Property="TextColor" Value="#E0E0E0" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Focused">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#1E88E5" />
-                                            <Setter Property="TextColor" Value="White" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                        </Button>
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
-            </VerticalStackLayout>
-        </ScrollView>
-
-        <!-- Movies List (Text Only for Speed) -->
-        <ScrollView
-            Grid.Column="1"
-            BackgroundColor="#0E1621"
-            Padding="10">
-            <VerticalStackLayout
-                x:Name="MoviesLayout"
-                Spacing="5">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate>
-                        <Button
-                            Text="{Binding Name}"
-                            TextColor="#E0E0E0"
+                            Focused="OnCategoryFocused"
                             BackgroundColor="Transparent"
-                            BorderColor="#1565C0"
-                            BorderWidth="1"
+                            TextColor="White"
                             HeightRequest="60"
-                            FontSize="18"
-                            Clicked="OnMovieClicked"
-                            HorizontalOptions="Fill">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="Transparent" />
-                                            <Setter Property="TextColor" Value="#E0E0E0" />
-                                            <Setter Property="BorderColor" Value="#1565C0" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Focused">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#1E88E5" />
-                                            <Setter Property="TextColor" Value="White" />
-                                            <Setter Property="BorderColor" Value="#1E88E5" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                        </Button>
+                            HorizontalOptions="Fill" />
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
+
             </VerticalStackLayout>
         </ScrollView>
 
+        <!-- MOVIES (RIGHT) -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+
+            <!-- SEARCH (RIGHT SIDE ONLY) -->
+            <Entry
+                x:Name="SearchEntry"
+                Placeholder="Search movies..."
+                TextColor="White"
+                BackgroundColor="#1A2433"
+                TextChanged="OnSearchTextChanged"
+                Margin="8" />
+
+            <!-- MOVIES LIST -->
+            <ScrollView Grid.Row="1">
+                <VerticalStackLayout
+                    x:Name="MoviesLayout"
+                    Spacing="4"
+                    Padding="8">
+
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                            <Button
+                                Text="{Binding Name}"
+                                Clicked="OnMovieClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="White"
+                                HeightRequest="56"
+                                HorizontalOptions="Fill" />
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+
+                </VerticalStackLayout>
+            </ScrollView>
+
+        </Grid>
+
+        <!-- LOADING -->
         <ActivityIndicator
             x:Name="LoadingSpinner"
             Grid.ColumnSpan="2"
             IsRunning="False"
+            IsVisible="{Binding IsRunning, Source={x:Reference LoadingSpinner}}"
+            Color="#1E88E5"
             HorizontalOptions="Center"
-            VerticalOptions="Center"
-            Color="White" />
-    </Grid>
+            VerticalOptions="Center" />
 
+    </Grid>
 </ContentPage>

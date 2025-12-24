@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using MAXTV.Services;
 using MAXTV.Pages;
+using LibVLCSharp.MAUI;
 
 namespace MAXTV
 {
@@ -11,6 +12,7 @@ namespace MAXTV
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseLibVLCSharp()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -28,6 +30,7 @@ namespace MAXTV
             builder.Services.AddTransient<SeriesPage>();
             builder.Services.AddTransient<SeriesDetailPage>();
             builder.Services.AddTransient<SettingsPage>();
+            builder.Services.AddTransient<VideoPlayerPage>();
 
             // FIX: Ensure Buttons are focusable on Android TV
             Microsoft.Maui.Handlers.ButtonHandler.Mapper.AppendToMapping("FixButtonFocus", (handler, view) =>

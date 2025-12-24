@@ -10,5 +10,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(Pages.SeriesDetailPage), typeof(Pages.SeriesDetailPage));
         Routing.RegisterRoute(nameof(Pages.SettingsPage), typeof(Pages.SettingsPage));
         Routing.RegisterRoute(nameof(Pages.LivePage), typeof(Pages.LivePage));
+        Routing.RegisterRoute(nameof(Pages.VideoPlayerPage), typeof(Pages.VideoPlayerPage));
     }
 }

@@ -81,41 +81,11 @@ public partial class SeriesDetailPage : ContentPage
         }
     }
 
-    private void PlayVideo(string url)
+    private async void PlayVideo(string url)
     {
-#if ANDROID
-        try
-        {
-            var uri = Android.Net.Uri.Parse(url);
-            var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
-            intent.SetDataAndType(uri, "video/*");
-            intent.SetPackage("org.videolan.vlc");
-            intent.SetFlags(Android.Content.ActivityFlags.NewTask);
-            
-            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-            context.StartActivity(intent);
-        }
-        catch (Android.Content.ActivityNotFoundException)
-        {
-             try
-            {
-                var uri = Android.Net.Uri.Parse(url);
-                var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
-                intent.SetDataAndType(uri, "video/*");
-                intent.SetFlags(Android.Content.ActivityFlags.NewTask);
-                
-                var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-                context.StartActivity(intent);
-            }
-            catch (Exception ex)
-            {
-                DisplayAlert("Player Error", "VLC Player not found.\nPlease install VLC for Android.", "OK");
-            }
-        }
-        catch (Exception ex)
-        {
-            DisplayAlert("Error", "Could not open video player.\n" + ex.Message, "OK");
-        }
-#endif
+        // Navigate to internal player
+        await Shell.Current.GoToAsync($"{nameof(VideoPlayerPage)}" +
+        $"?VideoUrl={Uri.EscapeDataString(url)}" +
+        $"&ContentType=series");
     }
 }
