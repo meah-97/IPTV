@@ -19,11 +19,11 @@ public sealed class DownloadQueueManager
     private bool _started;
 
     // Track active/queued downloads to allow re-attaching listeners
-    // Key: "series_123" -> Current Progress Action
     private readonly ConcurrentDictionary<string, Action<double>?> _activeProgressCallbacks = new();
-
-    // Also track state callbacks to notify new listeners of completion
     private readonly ConcurrentDictionary<string, Action<DownloadState>?> _activeStateCallbacks = new();
+
+    // Cancellation support
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellationTokens = new();
 
     // Provide the Downloads list for binding
     public ObservableCollection<DownloadItem> Downloads { get; } = new();
@@ -50,15 +50,18 @@ public sealed class DownloadQueueManager
         Action<DownloadState> onStateChanged,
         Action<double>? onProgress = null)
     {
-        // 1. Register callbacks immediately so we can re-attach later if needed
+        // 1. Create cancellation source
+        var cts = new CancellationTokenSource();
+        _cancellationTokens[key] = cts;
+
+        // 2. Register callbacks
         _activeProgressCallbacks[key] = onProgress;
         _activeStateCallbacks[key] = onStateChanged;
 
-        // 2. Set Registry State to QUEUED immediately
-        // This ensures if user navigates away before download starts, it shows "Queued"
+        // 3. Set Registry State to QUEUED
         DownloadRegistry.SetState(key, DownloadState.Queued);
 
-        // 3. Create item
+        // 4. Create item
         var item = new DownloadItem
         {
             Title = title,
@@ -67,21 +70,25 @@ public sealed class DownloadQueueManager
             Status = "Queued"
         };
 
-        // 4. Add to UI list (must happen on UI thread if bound)
         MainThread.BeginInvokeOnMainThread(() => Downloads.Add(item));
 
         // 5. Enqueue the work
         Enqueue(async () =>
         {
+            // If cancelled before starting (e.g. while in queue)
+            if (cts.IsCancellationRequested)
+            {
+                Cleanup(key, finalPath, item, DownloadState.None);
+                return;
+            }
+
             // --- STARTED ---
             item.Status = "Downloading";
             DownloadRegistry.SetState(key, DownloadState.Downloading);
-
             NotifyState(key, DownloadState.Downloading);
 
             string tempPath = finalPath + ".part";
 
-            // Update both the model (for DownloadsPage) AND the caller (SeriesDetailPage)
             var progress = new Progress<double>(mbps =>
             {
                 item.SpeedMbps = mbps;
@@ -90,8 +97,8 @@ public sealed class DownloadQueueManager
 
             try
             {
-                // Perform download
-                await DownloadHelper.DownloadFileAsync(url, tempPath, progress);
+                // Perform download with cancellation token
+                await DownloadHelper.DownloadFileAsync(url, tempPath, progress, cts.Token);
 
                 // --- SUCCESS ---
                 if (File.Exists(finalPath)) File.Delete(finalPath);
@@ -99,27 +106,51 @@ public sealed class DownloadQueueManager
 
                 item.Status = "Completed";
                 DownloadRegistry.SetState(key, DownloadState.Completed);
-
                 NotifyState(key, DownloadState.Completed);
+            }
+            catch (OperationCanceledException)
+            {
+                // --- CANCELLED ---
+                System.Diagnostics.Debug.WriteLine($"Download Cancelled: {key}");
+                Cleanup(key, finalPath + ".part", item, DownloadState.None);
             }
             catch (Exception ex)
             {
                 // --- ERROR ---
                 System.Diagnostics.Debug.WriteLine($"Download Error: {ex}");
-                item.Status = "Failed";
-                DownloadRegistry.Clear(key); // Reset state so user can retry
-
-                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
-
-                NotifyState(key, DownloadState.None);
+                Cleanup(key, finalPath + ".part", item, DownloadState.None);
             }
             finally
             {
-                // Cleanup callbacks
                 _activeProgressCallbacks.TryRemove(key, out _);
                 _activeStateCallbacks.TryRemove(key, out _);
+                _cancellationTokens.TryRemove(key, out _);
+                cts.Dispose();
             }
         });
+    }
+
+    private void Cleanup(string key, string pathToDelete, DownloadItem item, DownloadState finalState)
+    {
+        item.Status = "Failed"; // or Cancelled
+        DownloadRegistry.Clear(key);
+        try { if (File.Exists(pathToDelete)) File.Delete(pathToDelete); } catch { }
+        NotifyState(key, finalState);
+    }
+
+    /// <summary>
+    /// Cancels an active or queued download.
+    /// </summary>
+    public void CancelDownload(string key)
+    {
+        if (_cancellationTokens.TryGetValue(key, out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+        }
     }
 
     /// <summary>
@@ -129,7 +160,6 @@ public sealed class DownloadQueueManager
     {
         if (_activeProgressCallbacks.ContainsKey(key))
         {
-            // Replace the old callbacks with the new ones
             _activeProgressCallbacks[key] = onProgress;
             _activeStateCallbacks[key] = onStateChanged;
             return true;
@@ -177,7 +207,7 @@ public sealed class DownloadQueueManager
                 }
                 catch
                 {
-                    // swallow so queue continues; UI will show failure via caller
+                    // swallow
                 }
             }
         }

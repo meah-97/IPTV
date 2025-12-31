@@ -131,12 +131,6 @@ public partial class SeriesDetailPage : ContentPage
             );
         }
 
-        // --- COLOR PALETTE ---
-        // Blue (Default): #1E88E5
-        // Green (Completed): #43A047
-        // Yellow (Downloading): #FBC02D (with black text for contrast, or stick to white text with darker yellow like #F57F17)
-        // Let's use #F9A825 (Yellow 800) for better white-text contrast
-
         switch (state)
         {
             case DownloadState.Completed:
@@ -151,7 +145,8 @@ public partial class SeriesDetailPage : ContentPage
                 downloadBtn.Text = "Downloading…";
                 downloadBtn.BackgroundColor = Color.FromArgb("#F9A825"); // Dark Yellow
                 downloadBtn.TextColor = Colors.White;
-                downloadBtn.IsEnabled = false;
+                // Enable button to allow clicking to cancel
+                downloadBtn.IsEnabled = true;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
 
@@ -159,7 +154,8 @@ public partial class SeriesDetailPage : ContentPage
                 downloadBtn.Text = "Queued";
                 downloadBtn.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
                 downloadBtn.TextColor = Colors.White;
-                downloadBtn.IsEnabled = false;
+                // Enable button to allow clicking to cancel
+                downloadBtn.IsEnabled = true;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
 
@@ -184,7 +180,7 @@ public partial class SeriesDetailPage : ContentPage
     // HANDLERS
     // ===============================================
 
-    private void OnEpisodeDownloadClicked(object sender, EventArgs e)
+    private async void OnEpisodeDownloadClicked(object sender, EventArgs e)
     {
         if (sender is not Button button ||
             button.BindingContext is not XtreamEpisode episode ||
@@ -206,19 +202,30 @@ public partial class SeriesDetailPage : ContentPage
 
         var currentState = ResolveState(key, finalPath, tempPath);
 
+        // 1. If Completed -> Play
         if (currentState == DownloadState.Completed)
         {
-            PlayLocal(finalPath);
+            await PlayLocal(finalPath);
             return;
         }
 
-        if (currentState != DownloadState.None)
+        // 2. If Downloading or Queued -> Confirm Cancel
+        if (currentState == DownloadState.Downloading || currentState == DownloadState.Queued)
+        {
+            bool cancel = await DisplayAlert("Stop Download", "Do you want to stop this download?", "Yes", "No");
+            if (cancel)
+            {
+                DownloadQueueManager.Instance.CancelDownload(key);
+                // UI update will happen via callback/state change to None
+            }
             return;
+        }
 
-        // Initial UI Update
+        // 3. If None -> Start Download
         button.Text = "Queued";
         button.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
-        button.IsEnabled = false;
+        // Keep enabled so user can cancel
+        button.IsEnabled = true;
         if (deleteBtn != null) deleteBtn.IsVisible = false;
 
         DownloadQueueManager.Instance.StartDownload(
