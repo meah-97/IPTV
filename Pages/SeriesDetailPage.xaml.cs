@@ -129,33 +129,44 @@ public partial class SeriesDetailPage : ContentPage
                     }
                 }
             );
-
-            // If we failed to attach (e.g. queue manager restart or inconsistent state),
-            // the button will stay in static "Downloading..." state, which is acceptable fallback.
         }
+
+        // --- COLOR PALETTE ---
+        // Blue (Default): #1E88E5
+        // Green (Completed): #43A047
+        // Yellow (Downloading): #FBC02D (with black text for contrast, or stick to white text with darker yellow like #F57F17)
+        // Let's use #F9A825 (Yellow 800) for better white-text contrast
 
         switch (state)
         {
             case DownloadState.Completed:
                 downloadBtn.Text = "Play Local";
+                downloadBtn.BackgroundColor = Color.FromArgb("#43A047"); // Green
+                downloadBtn.TextColor = Colors.White;
                 downloadBtn.IsEnabled = true;
                 if (deleteBtn != null) deleteBtn.IsVisible = true;
                 break;
 
             case DownloadState.Downloading:
                 downloadBtn.Text = "Downloading…";
+                downloadBtn.BackgroundColor = Color.FromArgb("#F9A825"); // Dark Yellow
+                downloadBtn.TextColor = Colors.White;
                 downloadBtn.IsEnabled = false;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
 
             case DownloadState.Queued:
                 downloadBtn.Text = "Queued";
+                downloadBtn.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
+                downloadBtn.TextColor = Colors.White;
                 downloadBtn.IsEnabled = false;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
 
             default:
                 downloadBtn.Text = "Download";
+                downloadBtn.BackgroundColor = Color.FromArgb("#1E88E5"); // Blue
+                downloadBtn.TextColor = Colors.White;
                 downloadBtn.IsEnabled = true;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
@@ -204,7 +215,9 @@ public partial class SeriesDetailPage : ContentPage
         if (currentState != DownloadState.None)
             return;
 
+        // Initial UI Update
         button.Text = "Queued";
+        button.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
         button.IsEnabled = false;
         if (deleteBtn != null) deleteBtn.IsVisible = false;
 
@@ -234,7 +247,6 @@ public partial class SeriesDetailPage : ContentPage
             !int.TryParse(episode.Id, out int streamId))
             return;
 
-        // Confirmation Dialog
         bool answer = await DisplayAlert("Confirm Delete", "Are you sure you want to delete this episode?", "Yes", "No");
         if (!answer) return;
 
