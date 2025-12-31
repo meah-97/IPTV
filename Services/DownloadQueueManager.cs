@@ -54,7 +54,11 @@ public sealed class DownloadQueueManager
         _activeProgressCallbacks[key] = onProgress;
         _activeStateCallbacks[key] = onStateChanged;
 
-        // 2. Create item
+        // 2. Set Registry State to QUEUED immediately
+        // This ensures if user navigates away before download starts, it shows "Queued"
+        DownloadRegistry.SetState(key, DownloadState.Queued);
+
+        // 3. Create item
         var item = new DownloadItem
         {
             Title = title,
@@ -63,10 +67,10 @@ public sealed class DownloadQueueManager
             Status = "Queued"
         };
 
-        // 3. Add to UI list (must happen on UI thread if bound)
+        // 4. Add to UI list (must happen on UI thread if bound)
         MainThread.BeginInvokeOnMainThread(() => Downloads.Add(item));
 
-        // 4. Enqueue the work
+        // 5. Enqueue the work
         Enqueue(async () =>
         {
             // --- STARTED ---
