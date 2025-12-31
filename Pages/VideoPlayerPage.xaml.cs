@@ -1,4 +1,4 @@
-using LibVLCSharp.Shared;
+﻿using LibVLCSharp.Shared;
 using LibVLCSharp.MAUI;
 using System.Timers;
 using MAXTV.Services;
@@ -13,21 +13,35 @@ public partial class VideoPlayerPage : ContentPage
     private MediaPlayer? _mediaPlayer;
     private string _videoUrl = string.Empty;
 
+    // identifies which buffer to use: live/movie/series
     private string _contentType = "movie";
     public string ContentType
     {
         get => _contentType;
-        set => _contentType = string.IsNullOrWhiteSpace(value) ? "movie" : value.ToLowerInvariant();
+        set
+        {
+            _contentType = string.IsNullOrWhiteSpace(value)
+                ? "movie"
+                : value.ToLowerInvariant();
+
+            if (ReadyToPlay)
+                PlayVideo();
+        }
     }
 
-    private readonly System.Timers.Timer _hideControlsTimer;
+    private bool ReadyToPlay =>
+        !string.IsNullOrWhiteSpace(_videoUrl) &&
+        !string.IsNullOrWhiteSpace(_contentType);
 
-    // Buffering simulation
+    // Timers (explicit types to avoid ambiguity with System.Threading.Timer)
+    private readonly System.Timers.Timer _hideControlsTimer;
     private readonly System.Timers.Timer _bufferingTimer;
+
+    // Buffer UI tracking
     private double _simulatedProgress = 0.0;
     private double _realProgress = 0.0;
-
     private int _bufferMs = 120000;
+    private bool _bufferComplete = false;
 
     public string VideoUrl
     {
@@ -35,7 +49,9 @@ public partial class VideoPlayerPage : ContentPage
         set
         {
             _videoUrl = value ?? string.Empty;
-            PlayVideo();
+
+            if (ReadyToPlay)
+                PlayVideo();
         }
     }
 
@@ -55,6 +71,7 @@ public partial class VideoPlayerPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+
         DeviceDisplay.Current.KeepScreenOn = true;
 
         ResetHideTimer();
@@ -75,12 +92,10 @@ public partial class VideoPlayerPage : ContentPage
 
     private void PlayVideo()
     {
-        if (string.IsNullOrWhiteSpace(_videoUrl))
-            return;
-
         Stop();
 
         _bufferMs = ResolveBufferMs();
+        _bufferComplete = false;
         StartBuffering();
 
         _libVLC = new LibVLC(
@@ -94,8 +109,6 @@ public partial class VideoPlayerPage : ContentPage
         videoView.MediaPlayer = _mediaPlayer;
 
         _mediaPlayer.SeekableChanged += OnSeekableChanged;
-        _mediaPlayer.Opening += (s, e) => StartBuffering();
-        _mediaPlayer.Playing += (s, e) => StopBuffering();
         _mediaPlayer.EncounteredError += (s, e) => StopBuffering();
 
         _mediaPlayer.Buffering += (s, e) =>
@@ -103,6 +116,7 @@ public partial class VideoPlayerPage : ContentPage
             _realProgress = e.Cache / 100.0;
             UpdateBufferingUI();
             UpdateBufferInfo();
+            CheckBufferCompletion();
         };
 
         var media = new Media(_libVLC, new Uri(_videoUrl));
@@ -116,13 +130,18 @@ public partial class VideoPlayerPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             BufferInfoLabel.IsVisible = AppSettings.ShowBufferDebug;
+            ControlsGrid.IsVisible = false;
         });
     }
+
+    // ---------------- Buffer UI ----------------
 
     private void StartBuffering()
     {
         _simulatedProgress = 0.0;
         _realProgress = 0.0;
+        _bufferComplete = false;
+
         _bufferingTimer.Start();
 
         MainThread.BeginInvokeOnMainThread(() =>
@@ -135,6 +154,8 @@ public partial class VideoPlayerPage : ContentPage
     private void StopBuffering()
     {
         _bufferingTimer.Stop();
+        _bufferComplete = true;
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
             BufferingProgressBar.Progress = 1.0;
@@ -144,16 +165,17 @@ public partial class VideoPlayerPage : ContentPage
 
     private void OnBufferingTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        if (_simulatedProgress < 0.95)
-        {
-            var steps = Math.Max(1.0, _bufferMs / 100.0);
-            _simulatedProgress += 0.95 / steps;
-            if (_simulatedProgress > 0.95)
-                _simulatedProgress = 0.95;
-        }
+        if (_bufferComplete)
+            return;
+
+        var steps = Math.Max(1.0, _bufferMs / 100.0);
+        _simulatedProgress += 1.0 / steps;
+        if (_simulatedProgress > 1.0)
+            _simulatedProgress = 1.0;
 
         UpdateBufferingUI();
         UpdateBufferInfo();
+        CheckBufferCompletion();
     }
 
     private void UpdateBufferingUI()
@@ -178,53 +200,33 @@ public partial class VideoPlayerPage : ContentPage
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            BufferInfoLabel.Text = $"Buffer: ~{bufferedSeconds} sec";
+            BufferInfoLabel.Text = $"Buffer: {bufferedSeconds} sec";
         });
     }
 
-    private void OnSeekableChanged(object? sender, MediaPlayerSeekableChangedEventArgs e)
+    private void CheckBufferCompletion()
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            bool canSeek = e.Seekable != 0;
-            RewindButton.IsVisible = canSeek;
-            FastForwardButton.IsVisible = canSeek;
-        });
+        if (_bufferComplete)
+            return;
+
+        double progress = Math.Max(_realProgress, _simulatedProgress);
+        int bufferedSeconds = (int)((_bufferMs / 1000.0) * progress);
+
+        if (bufferedSeconds >= (_bufferMs / 1000))
+            StopBuffering();
     }
 
-    protected override void OnDisappearing()
+    // ---------------- Controls ----------------
+
+    private void ResetHideTimer()
     {
-        base.OnDisappearing();
-        DeviceDisplay.Current.KeepScreenOn = false;
-        Stop();
+        _hideControlsTimer.Stop();
+        _hideControlsTimer.Start();
     }
 
-    private void Stop()
+    private void OnHideTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        _hideControlsTimer?.Stop();
-        _bufferingTimer?.Stop();
-
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            BufferInfoLabel.IsVisible = false;
-        });
-
-        _mediaPlayer?.Stop();
-        _mediaPlayer?.Dispose();
-        _mediaPlayer = null;
-
-        _libVLC?.Dispose();
-        _libVLC = null;
-    }
-
-    // --- Controls (unchanged) ---
-
-    private void OnOverlayInputClicked(object sender, EventArgs e)
-    {
-        if (ControlsGrid.IsVisible)
-            HideControls();
-        else
-            ShowControls();
+        HideControls();
     }
 
     private void ShowControls()
@@ -234,7 +236,7 @@ public partial class VideoPlayerPage : ContentPage
 
         MainThread.BeginInvokeOnMainThread(async () =>
         {
-            await Task.Delay(100);
+            await Task.Delay(50);
             PlayPauseButton.Focus();
         });
     }
@@ -249,15 +251,12 @@ public partial class VideoPlayerPage : ContentPage
         _hideControlsTimer.Stop();
     }
 
-    private void ResetHideTimer()
+    private void OnOverlayInputClicked(object sender, EventArgs e)
     {
-        _hideControlsTimer.Stop();
-        _hideControlsTimer.Start();
-    }
-
-    private void OnHideTimerElapsed(object? sender, ElapsedEventArgs e)
-    {
-        HideControls();
+        if (ControlsGrid.IsVisible)
+            HideControls();
+        else
+            ShowControls();
     }
 
     private void OnPlayPauseClicked(object sender, EventArgs e)
@@ -296,5 +295,43 @@ public partial class VideoPlayerPage : ContentPage
         ResetHideTimer();
         if (_mediaPlayer?.IsSeekable == true)
             _mediaPlayer.Time = Math.Min(_mediaPlayer.Length, _mediaPlayer.Time + 30000);
+    }
+
+    private void OnSeekableChanged(object? sender, MediaPlayerSeekableChangedEventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            bool canSeek = e.Seekable != 0;
+            RewindButton.IsVisible = canSeek;
+            FastForwardButton.IsVisible = canSeek;
+        });
+    }
+
+    // ---------------- Lifecycle ----------------
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        DeviceDisplay.Current.KeepScreenOn = false;
+        Stop();
+    }
+
+    private void Stop()
+    {
+        _hideControlsTimer?.Stop();
+        _bufferingTimer?.Stop();
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            BufferInfoLabel.IsVisible = false;
+            ControlsGrid.IsVisible = false;
+        });
+
+        _mediaPlayer?.Stop();
+        _mediaPlayer?.Dispose();
+        _mediaPlayer = null;
+
+        _libVLC?.Dispose();
+        _libVLC = null;
     }
 }
