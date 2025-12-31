@@ -18,6 +18,13 @@ public sealed class DownloadQueueManager
     private readonly object _startLock = new();
     private bool _started;
 
+    // Track active/queued downloads to allow re-attaching listeners
+    // Key: "series_123" -> Current Progress Action
+    private readonly ConcurrentDictionary<string, Action<double>?> _activeProgressCallbacks = new();
+
+    // Also track state callbacks to notify new listeners of completion
+    private readonly ConcurrentDictionary<string, Action<DownloadState>?> _activeStateCallbacks = new();
+
     // Provide the Downloads list for binding
     public ObservableCollection<DownloadItem> Downloads { get; } = new();
 
@@ -43,7 +50,11 @@ public sealed class DownloadQueueManager
         Action<DownloadState> onStateChanged,
         Action<double>? onProgress = null)
     {
-        // 1. Create item
+        // 1. Register callbacks immediately so we can re-attach later if needed
+        _activeProgressCallbacks[key] = onProgress;
+        _activeStateCallbacks[key] = onStateChanged;
+
+        // 2. Create item
         var item = new DownloadItem
         {
             Title = title,
@@ -52,18 +63,17 @@ public sealed class DownloadQueueManager
             Status = "Queued"
         };
 
-        // 2. Add to UI list (must happen on UI thread if bound)
+        // 3. Add to UI list (must happen on UI thread if bound)
         MainThread.BeginInvokeOnMainThread(() => Downloads.Add(item));
 
-        // 3. Enqueue the work
+        // 4. Enqueue the work
         Enqueue(async () =>
         {
             // --- STARTED ---
             item.Status = "Downloading";
             DownloadRegistry.SetState(key, DownloadState.Downloading);
 
-            // Notify caller (SeriesDetail) to update its button
-            MainThread.BeginInvokeOnMainThread(() => onStateChanged(DownloadState.Downloading));
+            NotifyState(key, DownloadState.Downloading);
 
             string tempPath = finalPath + ".part";
 
@@ -71,10 +81,7 @@ public sealed class DownloadQueueManager
             var progress = new Progress<double>(mbps =>
             {
                 item.SpeedMbps = mbps;
-                if (onProgress != null)
-                {
-                    MainThread.BeginInvokeOnMainThread(() => onProgress(mbps));
-                }
+                NotifyProgress(key, mbps);
             });
 
             try
@@ -89,7 +96,7 @@ public sealed class DownloadQueueManager
                 item.Status = "Completed";
                 DownloadRegistry.SetState(key, DownloadState.Completed);
 
-                MainThread.BeginInvokeOnMainThread(() => onStateChanged(DownloadState.Completed));
+                NotifyState(key, DownloadState.Completed);
             }
             catch (Exception ex)
             {
@@ -100,10 +107,46 @@ public sealed class DownloadQueueManager
 
                 try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
 
-                // Pass 'None' so it resets to 'Download', or we could pass 'Failed' if we want special UI
-                MainThread.BeginInvokeOnMainThread(() => onStateChanged(DownloadState.None));
+                NotifyState(key, DownloadState.None);
+            }
+            finally
+            {
+                // Cleanup callbacks
+                _activeProgressCallbacks.TryRemove(key, out _);
+                _activeStateCallbacks.TryRemove(key, out _);
             }
         });
+    }
+
+    /// <summary>
+    /// Allows a new UI instance (e.g., after navigation) to subscribe to an ongoing download.
+    /// </summary>
+    public bool AttachListener(string key, Action<DownloadState> onStateChanged, Action<double> onProgress)
+    {
+        if (_activeProgressCallbacks.ContainsKey(key))
+        {
+            // Replace the old callbacks with the new ones
+            _activeProgressCallbacks[key] = onProgress;
+            _activeStateCallbacks[key] = onStateChanged;
+            return true;
+        }
+        return false;
+    }
+
+    private void NotifyState(string key, DownloadState state)
+    {
+        if (_activeStateCallbacks.TryGetValue(key, out var callback) && callback != null)
+        {
+            MainThread.BeginInvokeOnMainThread(() => callback(state));
+        }
+    }
+
+    private void NotifyProgress(string key, double mbps)
+    {
+        if (_activeProgressCallbacks.TryGetValue(key, out var callback) && callback != null)
+        {
+            MainThread.BeginInvokeOnMainThread(() => callback(mbps));
+        }
     }
 
     private void EnsureWorkerStarted()

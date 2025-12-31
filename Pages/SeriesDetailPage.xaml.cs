@@ -87,15 +87,13 @@ public partial class SeriesDetailPage : ContentPage
     {
         foreach (var view in EpisodesLayout.Children)
         {
-            // The item template is now a Grid containing a HorizontalStackLayout in col 1
             if (view is Grid grid)
             {
-                // Find buttons inside the HorizontalStackLayout (Grid.Column="1")
                 var stack = grid.Children.OfType<HorizontalStackLayout>().FirstOrDefault();
                 if (stack == null) continue;
 
-                var downloadBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text != "✕"); // Main button
-                var deleteBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text == "✕"); // Delete button
+                var downloadBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text != "✕");
+                var deleteBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text == "✕");
 
                 if (downloadBtn != null && downloadBtn.BindingContext is XtreamEpisode episode && int.TryParse(episode.Id, out int streamId))
                 {
@@ -113,6 +111,28 @@ public partial class SeriesDetailPage : ContentPage
         string tempPath = finalPath + ".part";
 
         var state = ResolveState(key, finalPath, tempPath);
+
+        // Re-attach listeners if downloading
+        if (state == DownloadState.Downloading || state == DownloadState.Queued)
+        {
+            bool attached = DownloadQueueManager.Instance.AttachListener(
+                key,
+                onStateChanged: (newState) =>
+                {
+                    UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
+                },
+                onProgress: (mbps) =>
+                {
+                    if (downloadBtn.Text != "Queued")
+                    {
+                        downloadBtn.Text = $"Dl: {mbps:F1} MB/s";
+                    }
+                }
+            );
+
+            // If we failed to attach (e.g. queue manager restart or inconsistent state),
+            // the button will stay in static "Downloading..." state, which is acceptable fallback.
+        }
 
         switch (state)
         {
@@ -145,9 +165,7 @@ public partial class SeriesDetailPage : ContentPage
     private DownloadState ResolveState(string key, string finalPath, string tempPath)
     {
         if (File.Exists(finalPath)) return DownloadState.Completed;
-        // If file exists but registry says nothing, check partial
         if (File.Exists(tempPath)) return DownloadRegistry.GetState(key) == DownloadState.None ? DownloadState.None : DownloadState.Downloading;
-
         return DownloadRegistry.GetState(key);
     }
 
@@ -162,7 +180,6 @@ public partial class SeriesDetailPage : ContentPage
             !int.TryParse(episode.Id, out int streamId))
             return;
 
-        // Try to find the associated Delete button (in the same stack)
         Button? deleteBtn = null;
         if (button.Parent is HorizontalStackLayout stack)
         {
@@ -187,7 +204,6 @@ public partial class SeriesDetailPage : ContentPage
         if (currentState != DownloadState.None)
             return;
 
-        // Initial UI Feedback
         button.Text = "Queued";
         button.IsEnabled = false;
         if (deleteBtn != null) deleteBtn.IsVisible = false;
@@ -199,13 +215,11 @@ public partial class SeriesDetailPage : ContentPage
             key: key,
             onStateChanged: (newState) =>
             {
-                // Refresh full state (handles transitions like Download -> Complete)
                 UpdateButtonState(button, deleteBtn, episode, streamId);
             },
             onProgress: (mbps) =>
             {
-                // Real-time speed update on the button
-                if (button.Text != "Queued") // Don't overwrite if it's just queued
+                if (button.Text != "Queued")
                 {
                     button.Text = $"Dl: {mbps:F1} MB/s";
                 }
@@ -213,14 +227,17 @@ public partial class SeriesDetailPage : ContentPage
         );
     }
 
-    private void OnEpisodeDeleteClicked(object sender, EventArgs e)
+    private async void OnEpisodeDeleteClicked(object sender, EventArgs e)
     {
         if (sender is not Button deleteBtn ||
             deleteBtn.BindingContext is not XtreamEpisode episode ||
             !int.TryParse(episode.Id, out int streamId))
             return;
 
-        // Find associated download button
+        // Confirmation Dialog
+        bool answer = await DisplayAlert("Confirm Delete", "Are you sure you want to delete this episode?", "Yes", "No");
+        if (!answer) return;
+
         Button? downloadBtn = null;
         if (deleteBtn.Parent is HorizontalStackLayout stack)
         {
@@ -231,7 +248,6 @@ public partial class SeriesDetailPage : ContentPage
         string ext = episode.ContainerExtension ?? "mp4";
         string finalPath = DownloadHelper.GetLocalPath("series", $"{streamId}.{ext}");
 
-        // Perform delete
         try
         {
             if (File.Exists(finalPath))
@@ -240,7 +256,6 @@ public partial class SeriesDetailPage : ContentPage
             }
             DownloadRegistry.Clear(key);
 
-            // Reset UI
             if (downloadBtn != null)
             {
                 UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
@@ -248,7 +263,7 @@ public partial class SeriesDetailPage : ContentPage
         }
         catch (Exception ex)
         {
-            DisplayAlert("Error", "Could not delete file: " + ex.Message, "OK");
+            await DisplayAlert("Error", "Could not delete file: " + ex.Message, "OK");
         }
     }
 
