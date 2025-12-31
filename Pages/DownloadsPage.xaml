@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MAXTV.Pages.DownloadsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:conv="clr-namespace:MAXTV.Converters"
+    BackgroundColor="#0E1621"
+    Title="Downloads">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:CompletedOnlyConverter x:Key="CompletedOnlyConverter" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <CollectionView
+        ItemsSource="{Binding Downloads}"
+        SelectionMode="None"
+        Margin="10">
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate>
+                <Frame
+                    BackgroundColor="#132235"
+                    BorderColor="#1E88E5"
+                    CornerRadius="6"
+                    Padding="10"
+                    Margin="0,0,0,8">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout>
+                            <Label
+                                Text="{Binding Title}"
+                                TextColor="White"
+                                FontSize="18" />
+
+                            <Label
+                                Text="{Binding Status}"
+                                TextColor="LightGray"
+                                FontSize="14" />
+
+                            <Label
+                                Text="{Binding SpeedMbps, StringFormat='{}{0:F1} MB/s'}"
+                                TextColor="#64B5F6"
+                                FontSize="12"
+                                IsVisible="{Binding Status, Converter={StaticResource CompletedOnlyConverter}, ConverterParameter=invert}" />
+                        </VerticalStackLayout>
+
+                        <Button
+                            Grid.Column="1"
+                            Text="Play"
+                            BackgroundColor="#1E88E5"
+                            TextColor="White"
+                            IsVisible="{Binding Status, Converter={StaticResource CompletedOnlyConverter}}"
+                            Clicked="OnPlayClicked" />
+                    </Grid>
+
+                </Frame>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+    </CollectionView>
+</ContentPage>
