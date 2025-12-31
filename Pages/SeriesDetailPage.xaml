@@ -7,6 +7,7 @@
     Title="Series Details">
 
     <Grid ColumnDefinitions="300,*">
+
         <!-- Seasons List -->
         <ScrollView
             Grid.Column="0"
@@ -14,6 +15,7 @@
             <VerticalStackLayout
                 x:Name="SeasonsLayout"
                 Spacing="0">
+
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
                         <Button
@@ -43,6 +45,7 @@
                         </Button>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
+
             </VerticalStackLayout>
         </ScrollView>
 
@@ -51,45 +54,90 @@
             Grid.Column="1"
             BackgroundColor="#0E1621"
             Padding="10">
+
             <VerticalStackLayout
                 x:Name="EpisodesLayout"
-                Spacing="5">
+                Spacing="8">
+
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
-                        <Button
-                            Text="{Binding Title}"
-                            TextColor="#E0E0E0"
-                            BackgroundColor="Transparent"
-                            BorderColor="#1565C0"
-                            BorderWidth="1"
-                            HeightRequest="60"
-                            FontSize="18"
-                            Clicked="OnEpisodeClicked"
-                            HorizontalOptions="Fill">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="Transparent" />
-                                            <Setter Property="TextColor" Value="#E0E0E0" />
-                                            <Setter Property="BorderColor" Value="#1565C0" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Focused">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#1E88E5" />
-                                            <Setter Property="TextColor" Value="White" />
-                                            <Setter Property="BorderColor" Value="#1E88E5" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                        </Button>
+
+                        <!-- Episode row -->
+                        <Grid ColumnDefinitions="*,180"
+                              HeightRequest="60">
+
+                            <!-- Episode title -->
+                            <Button
+                                Grid.Column="0"
+                                Text="{Binding Title}"
+                                TextColor="#E0E0E0"
+                                BackgroundColor="Transparent"
+                                BorderColor="#1565C0"
+                                BorderWidth="1"
+                                FontSize="18"
+                                Clicked="OnEpisodeClicked"
+                                HorizontalOptions="Fill">
+
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="Transparent" />
+                                                <Setter Property="TextColor" Value="#E0E0E0" />
+                                                <Setter Property="BorderColor" Value="#1565C0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Focused">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#1E88E5" />
+                                                <Setter Property="TextColor" Value="White" />
+                                                <Setter Property="BorderColor" Value="#1E88E5" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Button>
+
+                            <!-- Actions (Download / Play / Delete) -->
+                            <HorizontalStackLayout
+                                Grid.Column="1"
+                                Spacing="5"
+                                HorizontalOptions="End"
+                                VerticalOptions="Center">
+
+                                <!-- Download / Play Local Button -->
+                                <Button
+                                    Text="Download"
+                                    Clicked="OnEpisodeDownloadClicked"
+                                    BackgroundColor="#1E88E5"
+                                    TextColor="White"
+                                    HeightRequest="40"
+                                    WidthRequest="120"
+                                    CornerRadius="6"
+                                    FontSize="14" />
+
+                                <!-- Delete Button (Hidden by default) -->
+                                <Button
+                                    Text="✕"
+                                    Clicked="OnEpisodeDeleteClicked"
+                                    BackgroundColor="#D32F2F"
+                                    TextColor="White"
+                                    HeightRequest="40"
+                                    WidthRequest="40"
+                                    CornerRadius="6"
+                                    FontSize="14"
+                                    IsVisible="False" />
+                            </HorizontalStackLayout>
+
+                        </Grid>
+
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
+
             </VerticalStackLayout>
         </ScrollView>
 
+        <!-- Loading -->
         <ActivityIndicator
             x:Name="LoadingSpinner"
             Grid.ColumnSpan="2"
@@ -97,6 +145,6 @@
             HorizontalOptions="Center"
             VerticalOptions="Center"
             Color="White" />
-    </Grid>
 
+    </Grid>
 </ContentPage>

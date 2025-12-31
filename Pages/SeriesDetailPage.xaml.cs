@@ -30,7 +30,6 @@ public partial class SeriesDetailPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        // Update states when returning to the page
         MainThread.BeginInvokeOnMainThread(UpdateDownloadButtonsForEpisodes);
     }
 
@@ -63,7 +62,6 @@ public partial class SeriesDetailPage : ContentPage
             if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.TryGetValue(seasonKey, out var episodes))
             {
                 BindableLayout.SetItemsSource(EpisodesLayout, episodes);
-                // Update states immediately after loading items
                 MainThread.BeginInvokeOnMainThread(UpdateDownloadButtonsForEpisodes);
             }
         }
@@ -82,30 +80,32 @@ public partial class SeriesDetailPage : ContentPage
     }
 
     // ===============================================
-    // FIXED LOOP LOGIC & INTEGRATED MANAGER
+    // UI UPDATES
     // ===============================================
 
     private void UpdateDownloadButtonsForEpisodes()
     {
         foreach (var view in EpisodesLayout.Children)
         {
-            // Fix: The item template is a Grid, not a Button.
+            // The item template is now a Grid containing a HorizontalStackLayout in col 1
             if (view is Grid grid)
             {
-                // Find the download button (it's the second button, or use Text/x:Name if possible,
-                // but simpler here is finding the one that says 'Download'/'Queued' etc)
-                // In the user's template, it's the second child in Grid.Column="1"
-                var downloadBtn = grid.Children.OfType<Button>().LastOrDefault();
+                // Find buttons inside the HorizontalStackLayout (Grid.Column="1")
+                var stack = grid.Children.OfType<HorizontalStackLayout>().FirstOrDefault();
+                if (stack == null) continue;
+
+                var downloadBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text != "✕"); // Main button
+                var deleteBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text == "✕"); // Delete button
 
                 if (downloadBtn != null && downloadBtn.BindingContext is XtreamEpisode episode && int.TryParse(episode.Id, out int streamId))
                 {
-                    UpdateButtonState(downloadBtn, episode, streamId);
+                    UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
                 }
             }
         }
     }
 
-    private void UpdateButtonState(Button button, XtreamEpisode episode, int streamId)
+    private void UpdateButtonState(Button downloadBtn, Button? deleteBtn, XtreamEpisode episode, int streamId)
     {
         string key = $"series_{streamId}";
         string ext = episode.ContainerExtension ?? "mp4";
@@ -117,23 +117,27 @@ public partial class SeriesDetailPage : ContentPage
         switch (state)
         {
             case DownloadState.Completed:
-                button.Text = "Play Local";
-                button.IsEnabled = true;
+                downloadBtn.Text = "Play Local";
+                downloadBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsVisible = true;
                 break;
 
             case DownloadState.Downloading:
-                button.Text = "Downloading…";
-                button.IsEnabled = false;
+                downloadBtn.Text = "Downloading…";
+                downloadBtn.IsEnabled = false;
+                if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
 
             case DownloadState.Queued:
-                button.Text = "Queued";
-                button.IsEnabled = false;
+                downloadBtn.Text = "Queued";
+                downloadBtn.IsEnabled = false;
+                if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
 
             default:
-                button.Text = "Download";
-                button.IsEnabled = true;
+                downloadBtn.Text = "Download";
+                downloadBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
         }
     }
@@ -147,12 +151,23 @@ public partial class SeriesDetailPage : ContentPage
         return DownloadRegistry.GetState(key);
     }
 
+    // ===============================================
+    // HANDLERS
+    // ===============================================
+
     private void OnEpisodeDownloadClicked(object sender, EventArgs e)
     {
         if (sender is not Button button ||
             button.BindingContext is not XtreamEpisode episode ||
             !int.TryParse(episode.Id, out int streamId))
             return;
+
+        // Try to find the associated Delete button (in the same stack)
+        Button? deleteBtn = null;
+        if (button.Parent is HorizontalStackLayout stack)
+        {
+            deleteBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text == "✕");
+        }
 
         string key = $"series_{streamId}";
         string ext = episode.ContainerExtension ?? "mp4";
@@ -170,13 +185,13 @@ public partial class SeriesDetailPage : ContentPage
         }
 
         if (currentState != DownloadState.None)
-            return; // Already active
+            return;
 
-        // UI Feedback immediate
+        // Initial UI Feedback
         button.Text = "Queued";
         button.IsEnabled = false;
+        if (deleteBtn != null) deleteBtn.IsVisible = false;
 
-        // Start via Manager
         DownloadQueueManager.Instance.StartDownload(
             title: episode.Title ?? $"Episode {streamId}",
             url: url,
@@ -184,10 +199,57 @@ public partial class SeriesDetailPage : ContentPage
             key: key,
             onStateChanged: (newState) =>
             {
-                // This callback runs on MainThread from Manager
-                UpdateButtonState(button, episode, streamId);
+                // Refresh full state (handles transitions like Download -> Complete)
+                UpdateButtonState(button, deleteBtn, episode, streamId);
+            },
+            onProgress: (mbps) =>
+            {
+                // Real-time speed update on the button
+                if (button.Text != "Queued") // Don't overwrite if it's just queued
+                {
+                    button.Text = $"Dl: {mbps:F1} MB/s";
+                }
             }
         );
+    }
+
+    private void OnEpisodeDeleteClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button deleteBtn ||
+            deleteBtn.BindingContext is not XtreamEpisode episode ||
+            !int.TryParse(episode.Id, out int streamId))
+            return;
+
+        // Find associated download button
+        Button? downloadBtn = null;
+        if (deleteBtn.Parent is HorizontalStackLayout stack)
+        {
+            downloadBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text != "✕");
+        }
+
+        string key = $"series_{streamId}";
+        string ext = episode.ContainerExtension ?? "mp4";
+        string finalPath = DownloadHelper.GetLocalPath("series", $"{streamId}.{ext}");
+
+        // Perform delete
+        try
+        {
+            if (File.Exists(finalPath))
+            {
+                File.Delete(finalPath);
+            }
+            DownloadRegistry.Clear(key);
+
+            // Reset UI
+            if (downloadBtn != null)
+            {
+                UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
+            }
+        }
+        catch (Exception ex)
+        {
+            DisplayAlert("Error", "Could not delete file: " + ex.Message, "OK");
+        }
     }
 
     private async Task PlayLocal(string path)

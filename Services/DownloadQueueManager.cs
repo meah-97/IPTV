@@ -40,7 +40,8 @@ public sealed class DownloadQueueManager
         string url,
         string finalPath,
         string key,
-        Action<DownloadState> onStateChanged)
+        Action<DownloadState> onStateChanged,
+        Action<double>? onProgress = null)
     {
         // 1. Create item
         var item = new DownloadItem
@@ -65,7 +66,16 @@ public sealed class DownloadQueueManager
             MainThread.BeginInvokeOnMainThread(() => onStateChanged(DownloadState.Downloading));
 
             string tempPath = finalPath + ".part";
-            var progress = new Progress<double>(mbps => item.SpeedMbps = mbps);
+
+            // Update both the model (for DownloadsPage) AND the caller (SeriesDetailPage)
+            var progress = new Progress<double>(mbps =>
+            {
+                item.SpeedMbps = mbps;
+                if (onProgress != null)
+                {
+                    MainThread.BeginInvokeOnMainThread(() => onProgress(mbps));
+                }
+            });
 
             try
             {
@@ -81,14 +91,16 @@ public sealed class DownloadQueueManager
 
                 MainThread.BeginInvokeOnMainThread(() => onStateChanged(DownloadState.Completed));
             }
-            catch
+            catch (Exception ex)
             {
                 // --- ERROR ---
+                System.Diagnostics.Debug.WriteLine($"Download Error: {ex}");
                 item.Status = "Failed";
                 DownloadRegistry.Clear(key); // Reset state so user can retry
 
                 try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
 
+                // Pass 'None' so it resets to 'Download', or we could pass 'Failed' if we want special UI
                 MainThread.BeginInvokeOnMainThread(() => onStateChanged(DownloadState.None));
             }
         });
