@@ -17,6 +17,7 @@ public class XtreamService
     public XtreamService()
     {
         _httpClient = new HttpClient();
+        _httpClient.Timeout = TimeSpan.FromSeconds(30); // Prevent infinite hanging
         // Construct the base API URL: http://server:port/player_api.php?username=...&password=...
         // Note: Real implementations should handle DNS resolution and ports more robustly.
         _baseUrl = $"{_serverUrl}/player_api.php?username={_username}&password={_password}";
@@ -44,10 +45,10 @@ public class XtreamService
     {
         try
         {
-            var response = await _httpClient.GetAsync(_baseUrl);
+            var response = await _httpClient.GetAsync(_baseUrl).ConfigureAwait(false);
             if (response.IsSuccessStatusCode)
             {
-                var loginData = await response.Content.ReadFromJsonAsync<XtreamLoginResponse>();
+                var loginData = await response.Content.ReadFromJsonAsync<XtreamLoginResponse>().ConfigureAwait(false);
                 return loginData?.UserInfo?.Status == "Active";
             }
         }
@@ -98,10 +99,10 @@ public class XtreamService
         try
         {
             var url = $"{_baseUrl}{actionParams}";
-            var response = await _httpClient.GetAsync(url);
+            var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
             if (response.IsSuccessStatusCode)
             {
-                return await response.Content.ReadFromJsonAsync<T>();
+                return await response.Content.ReadFromJsonAsync<T>().ConfigureAwait(false);
             }
         }
         catch (Exception ex)

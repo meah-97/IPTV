@@ -19,7 +19,8 @@ public partial class SeriesDetailPage : ContentPage
             // Only load if not already loading
             if (!_isLoading)
             {
-                LoadSeriesInfo();
+                // Offload to background to avoid blocking property setter logic
+                Dispatcher.Dispatch(async () => await LoadSeriesInfo());
             }
         }
     }
@@ -37,17 +38,14 @@ public partial class SeriesDetailPage : ContentPage
         base.OnAppearing();
         MainThread.BeginInvokeOnMainThread(UpdateDownloadButtonsForEpisodes);
 
-        // If series info hasn't been loaded yet (e.g. if navigated without QueryProperty trigger somehow, or retry needed)
-        // But usually QueryProperty handles it.
-        // We do NOT want to call LoadSeriesInfo here unconditionally if it's already done.
-        // If _seriesDetails is null and we have an ID, maybe try loading?
+        // If series info hasn't been loaded yet
         if (_seriesDetails == null && _seriesId != 0 && !_isLoading)
         {
-            LoadSeriesInfo();
+            Dispatcher.Dispatch(async () => await LoadSeriesInfo());
         }
     }
 
-    private async void LoadSeriesInfo()
+    private async Task LoadSeriesInfo()
     {
         if (_seriesId == 0 || _isLoading) return;
 
@@ -55,8 +53,9 @@ public partial class SeriesDetailPage : ContentPage
         {
             _isLoading = true;
             LoadingSpinner.IsRunning = true;
-            LoadingSpinner.IsVisible = true; // Ensure visible
+            LoadingSpinner.IsVisible = true;
 
+            // This now respects the timeout and doesn't deadlock UI thread
             _seriesDetails = await _xtreamService.GetSeriesInfoAsync(_seriesId);
 
             if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.Count > 0)
@@ -64,7 +63,7 @@ public partial class SeriesDetailPage : ContentPage
                 var seasons = _seriesDetails.Episodes.Keys.ToList();
                 BindableLayout.SetItemsSource(SeasonsLayout, seasons);
 
-                MainThread.BeginInvokeOnMainThread(async () =>
+                Dispatcher.Dispatch(async () =>
                 {
                     await Task.Delay(100);
                     var firstButton = SeasonsLayout.Children.FirstOrDefault() as View;
@@ -75,7 +74,6 @@ public partial class SeriesDetailPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error loading series info: {ex.Message}");
-            // Optionally show an alert
         }
         finally
         {
