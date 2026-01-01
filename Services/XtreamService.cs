@@ -18,8 +18,6 @@ public class XtreamService
     {
         _httpClient = new HttpClient();
         _httpClient.Timeout = TimeSpan.FromSeconds(30); // Prevent infinite hanging
-        // Construct the base API URL: http://server:port/player_api.php?username=...&password=...
-        // Note: Real implementations should handle DNS resolution and ports more robustly.
         _baseUrl = $"{_serverUrl}/player_api.php?username={_username}&password={_password}";
     }
 
@@ -43,20 +41,7 @@ public class XtreamService
 
     public async Task<bool> AuthenticateAsync()
     {
-        try
-        {
-            var response = await _httpClient.GetAsync(_baseUrl).ConfigureAwait(false);
-            if (response.IsSuccessStatusCode)
-            {
-                var loginData = await response.Content.ReadFromJsonAsync<XtreamLoginResponse>().ConfigureAwait(false);
-                return loginData?.UserInfo?.Status == "Active";
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Auth Error: {ex.Message}");
-        }
-        return false;
+        return await GetAsync<XtreamLoginResponse>("")?.ContinueWith(t => t.Result?.UserInfo?.Status == "Active") ?? Task.FromResult(false);
     }
 
     public async Task<List<XtreamCategory>> GetLiveCategoriesAsync()
@@ -99,15 +84,39 @@ public class XtreamService
         try
         {
             var url = $"{_baseUrl}{actionParams}";
+            System.Diagnostics.Debug.WriteLine($"[XtreamService] Requesting: {url}");
+
             var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
+
             if (response.IsSuccessStatusCode)
             {
-                return await response.Content.ReadFromJsonAsync<T>().ConfigureAwait(false);
+                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                // Debug log (truncated)
+                if (content.Length > 200)
+                    System.Diagnostics.Debug.WriteLine($"[XtreamService] Response (first 200): {content.Substring(0, 200)}...");
+                else
+                    System.Diagnostics.Debug.WriteLine($"[XtreamService] Response: {content}");
+
+                try
+                {
+                    return JsonSerializer.Deserialize<T>(content);
+                }
+                catch (JsonException jex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[XtreamService] JSON Error: {jex.Message}");
+                    // Sometimes API returns [] instead of {} on empty/error
+                    return default;
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[XtreamService] HTTP Error: {response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"API Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[XtreamService] General Error: {ex.Message}");
         }
         return default;
     }

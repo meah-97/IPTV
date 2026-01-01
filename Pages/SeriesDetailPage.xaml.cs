@@ -51,17 +51,30 @@ public partial class SeriesDetailPage : ContentPage
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[SeriesDetailPage] Starting LoadSeriesInfo for ID: {_seriesId}");
+
             _isLoading = true;
-            LoadingSpinner.IsRunning = true;
-            LoadingSpinner.IsVisible = true;
+
+            // Ensure UI update happens on Main Thread
+            Dispatcher.Dispatch(() =>
+            {
+                LoadingSpinner.IsRunning = true;
+                LoadingSpinner.IsVisible = true;
+            });
 
             // This now respects the timeout and doesn't deadlock UI thread
+            System.Diagnostics.Debug.WriteLine("[SeriesDetailPage] Calling GetSeriesInfoAsync...");
             _seriesDetails = await _xtreamService.GetSeriesInfoAsync(_seriesId);
+            System.Diagnostics.Debug.WriteLine($"[SeriesDetailPage] API returned. Details null? {_seriesDetails == null}");
 
             if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.Count > 0)
             {
                 var seasons = _seriesDetails.Episodes.Keys.ToList();
-                BindableLayout.SetItemsSource(SeasonsLayout, seasons);
+                // Ensure UI update happens on Main Thread
+                Dispatcher.Dispatch(() =>
+                {
+                    BindableLayout.SetItemsSource(SeasonsLayout, seasons);
+                });
 
                 Dispatcher.Dispatch(async () =>
                 {
@@ -77,8 +90,13 @@ public partial class SeriesDetailPage : ContentPage
         }
         finally
         {
-            LoadingSpinner.IsRunning = false;
-            LoadingSpinner.IsVisible = false;
+            System.Diagnostics.Debug.WriteLine("[SeriesDetailPage] Finally block reached. Stopping spinner.");
+            // Force UI update on Main Thread to stop spinner
+            Dispatcher.Dispatch(() =>
+            {
+                LoadingSpinner.IsRunning = false;
+                LoadingSpinner.IsVisible = false;
+            });
             _isLoading = false;
         }
     }
