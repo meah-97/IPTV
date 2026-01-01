@@ -101,7 +101,8 @@ public class XtreamService
 
                 try
                 {
-                    return JsonSerializer.Deserialize<T>(content);
+                    // Offload deserialization to background thread to prevent ANR on large payloads
+                    return await Task.Run(() => JsonSerializer.Deserialize<T>(content)).ConfigureAwait(false);
                 }
                 catch (JsonException jex)
                 {
