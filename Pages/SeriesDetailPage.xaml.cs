@@ -8,6 +8,7 @@ public partial class SeriesDetailPage : ContentPage
     private readonly XtreamService _xtreamService;
     private int _seriesId;
     private XtreamSeriesDetails? _seriesDetails;
+    private bool _isLoading; // Prevents concurrent loading
 
     public int SeriesId
     {
@@ -15,7 +16,11 @@ public partial class SeriesDetailPage : ContentPage
         set
         {
             _seriesId = value;
-            LoadSeriesInfo();
+            // Only load if not already loading
+            if (!_isLoading)
+            {
+                LoadSeriesInfo();
+            }
         }
     }
 
@@ -31,27 +36,52 @@ public partial class SeriesDetailPage : ContentPage
     {
         base.OnAppearing();
         MainThread.BeginInvokeOnMainThread(UpdateDownloadButtonsForEpisodes);
+
+        // If series info hasn't been loaded yet (e.g. if navigated without QueryProperty trigger somehow, or retry needed)
+        // But usually QueryProperty handles it.
+        // We do NOT want to call LoadSeriesInfo here unconditionally if it's already done.
+        // If _seriesDetails is null and we have an ID, maybe try loading?
+        if (_seriesDetails == null && _seriesId != 0 && !_isLoading)
+        {
+            LoadSeriesInfo();
+        }
     }
 
     private async void LoadSeriesInfo()
     {
-        if (_seriesId == 0) return;
+        if (_seriesId == 0 || _isLoading) return;
 
-        LoadingSpinner.IsRunning = true;
-        _seriesDetails = await _xtreamService.GetSeriesInfoAsync(_seriesId);
-        LoadingSpinner.IsRunning = false;
-
-        if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.Count > 0)
+        try
         {
-            var seasons = _seriesDetails.Episodes.Keys.ToList();
-            BindableLayout.SetItemsSource(SeasonsLayout, seasons);
+            _isLoading = true;
+            LoadingSpinner.IsRunning = true;
+            LoadingSpinner.IsVisible = true; // Ensure visible
 
-            MainThread.BeginInvokeOnMainThread(async () =>
+            _seriesDetails = await _xtreamService.GetSeriesInfoAsync(_seriesId);
+
+            if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.Count > 0)
             {
-                await Task.Delay(100);
-                var firstButton = SeasonsLayout.Children.FirstOrDefault() as View;
-                firstButton?.Focus();
-            });
+                var seasons = _seriesDetails.Episodes.Keys.ToList();
+                BindableLayout.SetItemsSource(SeasonsLayout, seasons);
+
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    await Task.Delay(100);
+                    var firstButton = SeasonsLayout.Children.FirstOrDefault() as View;
+                    firstButton?.Focus();
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading series info: {ex.Message}");
+            // Optionally show an alert
+        }
+        finally
+        {
+            LoadingSpinner.IsRunning = false;
+            LoadingSpinner.IsVisible = false;
+            _isLoading = false;
         }
     }
 
@@ -145,7 +175,6 @@ public partial class SeriesDetailPage : ContentPage
                 downloadBtn.Text = "Downloading…";
                 downloadBtn.BackgroundColor = Color.FromArgb("#F9A825"); // Dark Yellow
                 downloadBtn.TextColor = Colors.White;
-                // Enable button to allow clicking to cancel
                 downloadBtn.IsEnabled = true;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
@@ -154,7 +183,6 @@ public partial class SeriesDetailPage : ContentPage
                 downloadBtn.Text = "Queued";
                 downloadBtn.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
                 downloadBtn.TextColor = Colors.White;
-                // Enable button to allow clicking to cancel
                 downloadBtn.IsEnabled = true;
                 if (deleteBtn != null) deleteBtn.IsVisible = false;
                 break;
@@ -216,7 +244,6 @@ public partial class SeriesDetailPage : ContentPage
             if (cancel)
             {
                 DownloadQueueManager.Instance.CancelDownload(key);
-                // UI update will happen via callback/state change to None
             }
             return;
         }
@@ -224,7 +251,6 @@ public partial class SeriesDetailPage : ContentPage
         // 3. If None -> Start Download
         button.Text = "Queued";
         button.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
-        // Keep enabled so user can cancel
         button.IsEnabled = true;
         if (deleteBtn != null) deleteBtn.IsVisible = false;
 
