@@ -41,7 +41,8 @@ public class XtreamService
 
     public async Task<bool> AuthenticateAsync()
     {
-        return await GetAsync<XtreamLoginResponse>("")?.ContinueWith(t => t.Result?.UserInfo?.Status == "Active") ?? Task.FromResult(false);
+        var result = await GetAsync<XtreamLoginResponse>("").ConfigureAwait(false);
+        return result?.UserInfo?.Status == "Active";
     }
 
     public async Task<List<XtreamCategory>> GetLiveCategoriesAsync()
