@@ -52,24 +52,13 @@
 
                     <BindableLayout.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="50, *" HeightRequest="60" Margin="0,2">
-                                <Image
-                                    Grid.Column="0"
-                                    Source="{Binding PosterUrl}"
-                                    Aspect="AspectFill"
-                                    WidthRequest="50"
-                                    HeightRequest="60"
-                                    BackgroundColor="#232323" />
-
-                                <Button
-                                    Grid.Column="1"
-                                    Text="{Binding Name}"
-                                    Clicked="OnMovieClicked"
-                                    BackgroundColor="Transparent"
-                                    TextColor="White"
-                                    HeightRequest="60"
-                                    HorizontalOptions="Fill" />
-                            </Grid>
+                            <Button
+                                Text="{Binding Name}"
+                                Clicked="OnMovieClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="White"
+                                HeightRequest="56"
+                                HorizontalOptions="Fill" />
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
 
