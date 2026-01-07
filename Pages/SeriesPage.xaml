@@ -24,6 +24,7 @@
                             Unfocused="OnItemUnfocused"
                             BackgroundColor="Transparent"
                             TextColor="White"
+                            FontSize="22"
                             HeightRequest="60"
                             HorizontalOptions="Fill" />
                     </DataTemplate>
@@ -59,6 +60,7 @@
                                 Focused="OnItemFocused"
                                 Unfocused="OnItemUnfocused"
                                 BackgroundColor="Transparent"
+                                FontSize="22"
                                 TextColor="White"
                                 HeightRequest="56"
                                 HorizontalOptions="Fill" />

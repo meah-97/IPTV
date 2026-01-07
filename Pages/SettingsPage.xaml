@@ -11,12 +11,12 @@
 
             <Label
                 Text="Video Buffer Settings"
-                FontSize="22"
+                FontSize="26"
                 FontAttributes="Bold"
                 TextColor="White" />
 
             <!-- LIVE -->
-            <Label Text="Live TV Buffer" FontSize="18" TextColor="White" />
+            <Label Text="Live TV Buffer" FontSize="22" TextColor="White" />
             <Button
                 x:Name="LiveBufferButton"
                 Clicked="OnLiveBufferClicked"
@@ -27,7 +27,7 @@
                 HeightRequest="60" />
 
             <!-- MOVIES -->
-            <Label Text="Movies Buffer" FontSize="18" TextColor="White" />
+            <Label Text="Movies Buffer" FontSize="22" TextColor="White" />
             <Button
                 x:Name="MovieBufferButton"
                 Clicked="OnMovieBufferClicked"
@@ -38,7 +38,7 @@
                 HeightRequest="60" />
 
             <!-- SERIES -->
-            <Label Text="Series Buffer" FontSize="18" TextColor="White" />
+            <Label Text="Series Buffer" FontSize="22" TextColor="White" />
             <Button
                 x:Name="SeriesBufferButton"
                 Clicked="OnSeriesBufferClicked"
@@ -49,7 +49,7 @@
                 HeightRequest="60" />
 
             <!-- DEBUG -->
-            <Label Text="Debug" FontSize="18" TextColor="White" />
+            <Label Text="Debug" FontSize="22" TextColor="White" />
             <Button
                 x:Name="BufferDebugButton"
                 Clicked="OnBufferDebugClicked"
@@ -61,7 +61,7 @@
 
             <Label
                 Text="Press OK to cycle values"
-                FontSize="14"
+                FontSize="18"
                 TextColor="Gray" />
 
         </VerticalStackLayout>

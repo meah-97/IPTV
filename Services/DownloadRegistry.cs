@@ -1,4 +1,4 @@
-﻿namespace MAXTV.Services;
+namespace MAXTV.Services;
 
 public static class DownloadRegistry
 {

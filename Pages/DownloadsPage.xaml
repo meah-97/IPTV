@@ -32,17 +32,17 @@
                             <Label
                                 Text="{Binding Title}"
                                 TextColor="White"
-                                FontSize="18" />
+                                FontSize="22" />
 
                             <Label
                                 Text="{Binding Status}"
                                 TextColor="LightGray"
-                                FontSize="14" />
+                                FontSize="18" />
 
                             <Label
                                 Text="{Binding SpeedMbps, StringFormat='{}{0:F1} MB/s'}"
                                 TextColor="#64B5F6"
-                                FontSize="12"
+                                FontSize="16"
                                 IsVisible="{Binding Status, Converter={StaticResource CompletedOnlyConverter}, ConverterParameter=invert}" />
                         </VerticalStackLayout>
 

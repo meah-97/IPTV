@@ -22,24 +22,28 @@
         <Button
             x:Name="LiveButton"
             Text="Live TV"
+            FontSize="24"
             Style="{StaticResource MenuButtonStyle}"
             Clicked="OnLiveClicked" />
 
         <Button
             x:Name="MoviesButton"
             Text="Movies"
+            FontSize="24"
             Style="{StaticResource MenuButtonStyle}"
             Clicked="OnMoviesClicked" />
 
         <Button
             x:Name="SeriesButton"
             Text="Series"
+            FontSize="24"
             Style="{StaticResource MenuButtonStyle}"
             Clicked="OnSeriesClicked" />
 
         <Button
             x:Name="SettingsButton"
             Text="Settings"
+            FontSize="24"
             Style="{StaticResource MenuButtonStyle}"
             Clicked="OnSettingsClicked" />
 

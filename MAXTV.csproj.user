@@ -6,7 +6,7 @@
     <ActiveDebugProfile>Amazon AFTMM (Android 7.1 - API 25)</ActiveDebugProfile>
     <SelectedPlatformGroup>PhysicalDevice</SelectedPlatformGroup>
     <DefaultDevice>pixel_5_-_api_25</DefaultDevice>
-    <SelectedDevice>pixel_5_-_api_25</SelectedDevice>
+    <SelectedDevice>Amazon AFTMM</SelectedDevice>
   </PropertyGroup>
   <ItemGroup>
     <None Update="App.xaml">

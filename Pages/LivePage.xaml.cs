@@ -132,7 +132,7 @@ public partial class LivePage : ContentPage
         {
             Text = text,
             HeightRequest = 60,
-            FontSize = 18,
+            FontSize = 22,
             Padding = new Thickness(16, 0),
             HorizontalOptions = LayoutOptions.Fill,
             BackgroundColor = Colors.Transparent,

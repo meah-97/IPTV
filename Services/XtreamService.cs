@@ -1,4 +1,4 @@
-anmeusing System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace MAXTV.Services;
@@ -8,9 +8,9 @@ public class XtreamService
     private readonly HttpClient _httpClient;
     
     // Hardcoded credentials as requested
-    private const string _username = "username";
-    private const string _password = "password";
-    private const string _serverUrl = "http://your server"; // Needs to be a valid URL
+    private const string _username = "14167206030";
+    private const string _password = "pluto6030";
+    private const string _serverUrl = "http://ky-tv.cc:25461"; // Needs to be a valid URL
     
     private string _baseUrl;
 
