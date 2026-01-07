@@ -24,7 +24,6 @@ public partial class LocalDownloadsPage : ContentPage
 
         try
         {
-            // Scan base AppDataDirectory and 'downloads' subfolder
             var root = FileSystem.AppDataDirectory;
             var downloadsDir = Path.Combine(root, "downloads");
 
@@ -32,11 +31,9 @@ public partial class LocalDownloadsPage : ContentPage
 
             if (Directory.Exists(downloadsDir))
             {
-                // Recursive search in downloads folder (handles series/movies subfolders)
                 allFiles.AddRange(Directory.GetFiles(downloadsDir, "*.*", SearchOption.AllDirectories));
             }
 
-            // Also check root just in case
             allFiles.AddRange(Directory.GetFiles(root, "*.*", SearchOption.TopDirectoryOnly));
 
             var videos = allFiles
@@ -68,17 +65,48 @@ public partial class LocalDownloadsPage : ContentPage
         return ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".ts";
     }
 
-    private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    // New Handlers for Button interaction
+    private async void OnItemClicked(object sender, EventArgs e)
     {
-        if (e.CurrentSelection.FirstOrDefault() is LocalVideoItem item)
+        if (sender is Button btn && btn.BindingContext is LocalVideoItem item)
         {
-            // Clear selection so it can be re-selected
-            FilesCollection.SelectedItem = null;
-
             await Shell.Current.GoToAsync(
                 $"{nameof(VideoPlayerPage)}" +
                 $"?VideoUrl={Uri.EscapeDataString(item.Path)}" +
                 $"&ContentType=local");
+        }
+    }
+
+    private void OnItemFocused(object sender, FocusEventArgs e)
+    {
+        if (sender is Button btn && btn.Parent is Grid grid)
+        {
+            // Find the visual frame sibling
+            var frame = grid.Children.OfType<Frame>().FirstOrDefault();
+            if (frame != null)
+            {
+                frame.BackgroundColor = Color.FromArgb("#1E88E5"); // Focus color
+                frame.BorderColor = Colors.White;
+
+                // Optional: Scroll to item
+                btn.Dispatcher.Dispatch(() =>
+                {
+                    FilesCollection.ScrollTo(btn.BindingContext, position: ScrollToPosition.MakeVisible, animate: false);
+                });
+            }
+        }
+    }
+
+    private void OnItemUnfocused(object sender, FocusEventArgs e)
+    {
+        if (sender is Button btn && btn.Parent is Grid grid)
+        {
+            var frame = grid.Children.OfType<Frame>().FirstOrDefault();
+            if (frame != null)
+            {
+                frame.BackgroundColor = Color.FromArgb("#132235"); // Default color
+                frame.BorderColor = Color.FromArgb("#1E88E5");
+            }
         }
     }
 }
@@ -90,6 +118,5 @@ public class LocalVideoItem
     public long Size { get; set; }
     public DateTime Date { get; set; }
 
-    // Helper for UI
     public string DisplaySize => $"{Size / 1024.0 / 1024.0:F1} MB • {Date:g}";
 }

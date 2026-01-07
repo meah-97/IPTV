@@ -17,40 +17,53 @@
         <CollectionView
             Grid.Row="1"
             x:Name="FilesCollection"
-            SelectionMode="Single"
-            SelectionChanged="OnSelectionChanged"
+            SelectionMode="None"
             Margin="10">
 
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Frame
-                        BackgroundColor="#132235"
-                        BorderColor="#1E88E5"
-                        CornerRadius="8"
-                        Padding="15"
-                        Margin="0,0,0,10">
+                    <Grid Margin="0,0,0,10">
+                        <!-- Visual Container (Background) -->
+                        <Frame
+                            x:Name="VisualFrame"
+                            BackgroundColor="#132235"
+                            BorderColor="#1E88E5"
+                            CornerRadius="8"
+                            Padding="15"
+                            HasShadow="False">
 
-                        <Grid ColumnDefinitions="*,Auto">
-                            <VerticalStackLayout Grid.Column="0" Spacing="4">
-                                <Label
-                                    Text="{Binding Name}"
-                                    TextColor="White"
-                                    FontSize="18"
-                                    LineBreakMode="TailTruncation" />
-                                <Label
-                                    Text="{Binding DisplaySize}"
-                                    TextColor="#B0BEC5"
-                                    FontSize="14" />
-                            </VerticalStackLayout>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                    <Label
+                                        Text="{Binding Name}"
+                                        TextColor="White"
+                                        FontSize="18"
+                                        LineBreakMode="TailTruncation" />
+                                    <Label
+                                        Text="{Binding DisplaySize}"
+                                        TextColor="#B0BEC5"
+                                        FontSize="14" />
+                                </VerticalStackLayout>
 
-                            <Label
-                                Grid.Column="1"
-                                Text="▶"
-                                TextColor="#1E88E5"
-                                FontSize="20"
-                                VerticalOptions="Center" />
-                        </Grid>
-                    </Frame>
+                                <Label
+                                    Grid.Column="1"
+                                    Text="▶"
+                                    TextColor="#1E88E5"
+                                    FontSize="20"
+                                    VerticalOptions="Center" />
+                            </Grid>
+                        </Frame>
+
+                        <!-- Focus Target (Overlay Button) -->
+                        <Button
+                            BackgroundColor="Transparent"
+                            BorderColor="Transparent"
+                            BorderWidth="0"
+                            CornerRadius="8"
+                            Clicked="OnItemClicked"
+                            Focused="OnItemFocused"
+                            Unfocused="OnItemUnfocused" />
+                    </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
