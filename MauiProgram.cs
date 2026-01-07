@@ -31,6 +31,8 @@ namespace MAXTV
             builder.Services.AddTransient<SeriesDetailPage>();
             builder.Services.AddTransient<SettingsPage>();
             builder.Services.AddTransient<VideoPlayerPage>();
+            builder.Services.AddTransient<LocalDownloadsPage>();
+            builder.Services.AddTransient<DownloadsPage>();
 
             // FIX: Ensure Buttons are focusable on Android TV
             Microsoft.Maui.Handlers.ButtonHandler.Mapper.AppendToMapping("FixButtonFocus", (handler, view) =>

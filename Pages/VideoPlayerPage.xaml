@@ -12,7 +12,7 @@
         <Label
             x:Name="BufferInfoLabel"
              Text="Buffer: -- sec"
-             FontSize="12"
+             FontSize="16"
              TextColor="White"
             BackgroundColor="#66000000"
             Padding="6"
@@ -42,7 +42,7 @@
                    Text="Buffering..."
                    TextColor="White"
                    HorizontalOptions="Center"
-                   FontSize="14"/>
+                   FontSize="18"/>
             <ProgressBar x:Name="BufferingProgressBar"
                          ProgressColor="#1E88E5"
                          BackgroundColor="Gray"
@@ -65,7 +65,7 @@
                     Grid.Column="0"
                     BackgroundColor="Transparent"
                     TextColor="White"
-                    FontSize="12" />
+                    FontSize="16" />
 
             <Button x:Name="PlayPauseButton"
                     Text="Pause"
@@ -73,7 +73,7 @@
                     Grid.Column="1"
                     BackgroundColor="Transparent"
                     TextColor="White"
-                    FontSize="18"
+                    FontSize="22"
                     FontAttributes="Bold"/>
 
             <Button Text="Stop"
@@ -81,7 +81,7 @@
                     Grid.Column="2"
                     BackgroundColor="Transparent"
                     TextColor="White"
-                    FontSize="12" />
+                    FontSize="16" />
 
             <Button x:Name="FastForwardButton"
                     Text="Fast Fwd"
@@ -89,7 +89,7 @@
                     Grid.Column="3"
                     BackgroundColor="Transparent"
                     TextColor="White"
-                    FontSize="12" />
+                    FontSize="16" />
         </Grid>
 
     </Grid>

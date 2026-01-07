@@ -48,4 +48,9 @@ public partial class HomePage : ContentPage
         System.Diagnostics.Debug.WriteLine(">>> Settings clicked");
         await Shell.Current.GoToAsync(nameof(SettingsPage));
     }
+
+    async void OnLocalDownloadsClicked(object sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync(nameof(LocalDownloadsPage));
+    }
 }

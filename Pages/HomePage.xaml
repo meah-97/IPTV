@@ -38,6 +38,12 @@
             Clicked="OnSeriesClicked" />
 
         <Button
+            x:Name="LocalDownloadsButton"
+            Text="Local Downloads"
+            Style="{StaticResource MenuButtonStyle}"
+            Clicked="OnLocalDownloadsClicked" />
+
+        <Button
             x:Name="SettingsButton"
             Text="Settings"
             Style="{StaticResource MenuButtonStyle}"

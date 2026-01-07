@@ -75,6 +75,10 @@ public class XtreamStream
     
     [JsonPropertyName("container_extension")]
     public string? ContainerExtension { get; set; }
+
+    // Normalized property for UI binding
+    [JsonIgnore]
+    public string? PosterUrl => StreamIcon;
 }
 
 public class XtreamSeries
@@ -108,6 +112,10 @@ public class XtreamSeries
     
     [JsonPropertyName("rating")]
     public string? Rating { get; set; }
+
+    // Normalized property for UI binding
+    [JsonIgnore]
+    public string? PosterUrl => Cover;
 }
 
 public class XtreamEpisode

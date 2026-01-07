@@ -7,50 +7,92 @@ public partial class SeriesDetailPage : ContentPage
 {
     private readonly XtreamService _xtreamService;
     private int _seriesId;
-    
-    // SeriesId property for QueryProperty
+    private XtreamSeriesDetails? _seriesDetails;
+    private bool _isLoading; // Prevents concurrent loading
+
     public int SeriesId
     {
         get => _seriesId;
         set
         {
             _seriesId = value;
-            LoadSeriesInfo();
+            // Only load if not already loading
+            if (!_isLoading)
+            {
+                // Offload to background to avoid blocking property setter logic
+                Dispatcher.Dispatch(async () => await LoadSeriesInfo());
+            }
         }
     }
-
-    private XtreamSeriesDetails? _seriesDetails;
 
     public SeriesDetailPage(XtreamService xtreamService)
     {
         InitializeComponent();
         _xtreamService = xtreamService;
     }
-    
+
     public SeriesDetailPage() : this(new XtreamService()) { }
 
-    private async void LoadSeriesInfo()
+    protected override void OnAppearing()
     {
-        if (_seriesId == 0) return;
+        base.OnAppearing();
+        MainThread.BeginInvokeOnMainThread(UpdateDownloadButtonsForEpisodes);
 
-        LoadingSpinner.IsRunning = true;
-        _seriesDetails = await _xtreamService.GetSeriesInfoAsync(_seriesId);
-        LoadingSpinner.IsRunning = false;
-
-        if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.Count > 0)
+        // If series info hasn't been loaded yet
+        if (_seriesDetails == null && _seriesId != 0 && !_isLoading)
         {
-            // Populate Seasons (keys of the dictionary)
-            // Example keys: "1", "2", "3"
-            var seasons = _seriesDetails.Episodes.Keys.ToList();
-            BindableLayout.SetItemsSource(SeasonsLayout, seasons);
+            Dispatcher.Dispatch(async () => await LoadSeriesInfo());
+        }
+    }
 
-            // Force focus
-            MainThread.BeginInvokeOnMainThread(async () =>
+    private async Task LoadSeriesInfo()
+    {
+        if (_seriesId == 0 || _isLoading) return;
+
+        try
+        {
+            _isLoading = true;
+
+            // Ensure UI update happens on Main Thread
+            Dispatcher.Dispatch(() =>
             {
-                await Task.Delay(100);
-                var firstButton = SeasonsLayout.Children.FirstOrDefault() as View;
-                firstButton?.Focus();
+                LoadingSpinner.IsRunning = true;
+                LoadingSpinner.IsVisible = true;
             });
+
+            // This now respects the timeout and doesn't deadlock UI thread
+            _seriesDetails = await _xtreamService.GetSeriesInfoAsync(_seriesId);
+
+            if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.Count > 0)
+            {
+                var seasons = _seriesDetails.Episodes.Keys.ToList();
+                // Ensure UI update happens on Main Thread
+                Dispatcher.Dispatch(() =>
+                {
+                    BindableLayout.SetItemsSource(SeasonsLayout, seasons);
+                });
+
+                Dispatcher.Dispatch(async () =>
+                {
+                    await Task.Delay(100);
+                    var firstButton = SeasonsLayout.Children.FirstOrDefault() as View;
+                    firstButton?.Focus();
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading series info: {ex.Message}");
+        }
+        finally
+        {
+            // Force UI update on Main Thread to stop spinner
+            Dispatcher.Dispatch(() =>
+            {
+                LoadingSpinner.IsRunning = false;
+                LoadingSpinner.IsVisible = false;
+            });
+            _isLoading = false;
         }
     }
 
@@ -58,10 +100,10 @@ public partial class SeriesDetailPage : ContentPage
     {
         if (sender is Button button && button.BindingContext is string seasonKey)
         {
-            if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.ContainsKey(seasonKey))
+            if (_seriesDetails?.Episodes != null && _seriesDetails.Episodes.TryGetValue(seasonKey, out var episodes))
             {
-                var episodes = _seriesDetails.Episodes[seasonKey];
                 BindableLayout.SetItemsSource(EpisodesLayout, episodes);
+                MainThread.BeginInvokeOnMainThread(UpdateDownloadButtonsForEpisodes);
             }
         }
     }
@@ -70,22 +112,230 @@ public partial class SeriesDetailPage : ContentPage
     {
         if (sender is Button button && button.BindingContext is XtreamEpisode episode)
         {
-            // Parse ID to int if needed by API, but Xtream often uses stream_id logic
-            // Episode ID in model is string, but service expects int streamId
             if (int.TryParse(episode.Id, out int streamId))
             {
-                // Use GetSeriesStreamUrl for Episodes
                 var url = _xtreamService.GetSeriesStreamUrl(streamId, episode.ContainerExtension ?? "mp4");
                 PlayVideo(url);
             }
         }
     }
 
-    private async void PlayVideo(string url)
+    // ===============================================
+    // UI UPDATES
+    // ===============================================
+
+    private void UpdateDownloadButtonsForEpisodes()
     {
-        // Navigate to internal player
-        await Shell.Current.GoToAsync($"{nameof(VideoPlayerPage)}" +
-        $"?VideoUrl={Uri.EscapeDataString(url)}" +
-        $"&ContentType=series");
+        foreach (var view in EpisodesLayout.Children)
+        {
+            if (view is Grid grid)
+            {
+                var stack = grid.Children.OfType<HorizontalStackLayout>().FirstOrDefault();
+                if (stack == null) continue;
+
+                var downloadBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text != "✕");
+                var deleteBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text == "✕");
+
+                if (downloadBtn != null && downloadBtn.BindingContext is XtreamEpisode episode && int.TryParse(episode.Id, out int streamId))
+                {
+                    UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
+                }
+            }
+        }
+    }
+
+    private void UpdateButtonState(Button downloadBtn, Button? deleteBtn, XtreamEpisode episode, int streamId)
+    {
+        string key = $"series_{streamId}";
+        string ext = episode.ContainerExtension ?? "mp4";
+        string finalPath = DownloadHelper.GetLocalPath("series", $"{streamId}.{ext}");
+        string tempPath = finalPath + ".part";
+
+        var state = ResolveState(key, finalPath, tempPath);
+
+        // Re-attach listeners if downloading
+        if (state == DownloadState.Downloading || state == DownloadState.Queued)
+        {
+            bool attached = DownloadQueueManager.Instance.AttachListener(
+                key,
+                onStateChanged: (newState) =>
+                {
+                    UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
+                },
+                onProgress: (mbps) =>
+                {
+                    if (downloadBtn.Text != "Queued")
+                    {
+                        downloadBtn.Text = $"Dl: {mbps:F1} MB/s";
+                    }
+                }
+            );
+        }
+
+        switch (state)
+        {
+            case DownloadState.Completed:
+                downloadBtn.Text = "Play Local";
+                downloadBtn.BackgroundColor = Color.FromArgb("#43A047"); // Green
+                downloadBtn.TextColor = Colors.White;
+                downloadBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsVisible = true;
+                break;
+
+            case DownloadState.Downloading:
+                downloadBtn.Text = "Downloading…";
+                downloadBtn.BackgroundColor = Color.FromArgb("#F9A825"); // Dark Yellow
+                downloadBtn.TextColor = Colors.White;
+                downloadBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsVisible = false;
+                break;
+
+            case DownloadState.Queued:
+                downloadBtn.Text = "Queued";
+                downloadBtn.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
+                downloadBtn.TextColor = Colors.White;
+                downloadBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsVisible = false;
+                break;
+
+            default:
+                downloadBtn.Text = "Download";
+                downloadBtn.BackgroundColor = Color.FromArgb("#1E88E5"); // Blue
+                downloadBtn.TextColor = Colors.White;
+                downloadBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsVisible = false;
+                break;
+        }
+    }
+
+    private DownloadState ResolveState(string key, string finalPath, string tempPath)
+    {
+        if (File.Exists(finalPath)) return DownloadState.Completed;
+        if (File.Exists(tempPath)) return DownloadRegistry.GetState(key) == DownloadState.None ? DownloadState.None : DownloadState.Downloading;
+        return DownloadRegistry.GetState(key);
+    }
+
+    // ===============================================
+    // HANDLERS
+    // ===============================================
+
+    private async void OnEpisodeDownloadClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button button ||
+            button.BindingContext is not XtreamEpisode episode ||
+            !int.TryParse(episode.Id, out int streamId))
+            return;
+
+        Button? deleteBtn = null;
+        if (button.Parent is HorizontalStackLayout stack)
+        {
+            deleteBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text == "✕");
+        }
+
+        string key = $"series_{streamId}";
+        string ext = episode.ContainerExtension ?? "mp4";
+        string fileName = $"{streamId}.{ext}";
+        string finalPath = DownloadHelper.GetLocalPath("series", fileName);
+        string tempPath = finalPath + ".part";
+        string url = _xtreamService.GetSeriesStreamUrl(streamId, ext);
+
+        var currentState = ResolveState(key, finalPath, tempPath);
+
+        // 1. If Completed -> Play
+        if (currentState == DownloadState.Completed)
+        {
+            await PlayLocal(finalPath);
+            return;
+        }
+
+        // 2. If Downloading or Queued -> Confirm Cancel
+        if (currentState == DownloadState.Downloading || currentState == DownloadState.Queued)
+        {
+            bool cancel = await DisplayAlert("Stop Download", "Do you want to stop this download?", "Yes", "No");
+            if (cancel)
+            {
+                DownloadQueueManager.Instance.CancelDownload(key);
+            }
+            return;
+        }
+
+        // 3. If None -> Start Download
+        button.Text = "Queued";
+        button.BackgroundColor = Color.FromArgb("#EF6C00"); // Orange
+        button.IsEnabled = true;
+        if (deleteBtn != null) deleteBtn.IsVisible = false;
+
+        DownloadQueueManager.Instance.StartDownload(
+            title: episode.Title ?? $"Episode {streamId}",
+            url: url,
+            finalPath: finalPath,
+            key: key,
+            onStateChanged: (newState) =>
+            {
+                UpdateButtonState(button, deleteBtn, episode, streamId);
+            },
+            onProgress: (mbps) =>
+            {
+                if (button.Text != "Queued")
+                {
+                    button.Text = $"Dl: {mbps:F1} MB/s";
+                }
+            }
+        );
+    }
+
+    private async void OnEpisodeDeleteClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button deleteBtn ||
+            deleteBtn.BindingContext is not XtreamEpisode episode ||
+            !int.TryParse(episode.Id, out int streamId))
+            return;
+
+        bool answer = await DisplayAlert("Confirm Delete", "Are you sure you want to delete this episode?", "Yes", "No");
+        if (!answer) return;
+
+        Button? downloadBtn = null;
+        if (deleteBtn.Parent is HorizontalStackLayout stack)
+        {
+            downloadBtn = stack.Children.OfType<Button>().FirstOrDefault(b => b.Text != "✕");
+        }
+
+        string key = $"series_{streamId}";
+        string ext = episode.ContainerExtension ?? "mp4";
+        string finalPath = DownloadHelper.GetLocalPath("series", $"{streamId}.{ext}");
+
+        try
+        {
+            if (File.Exists(finalPath))
+            {
+                File.Delete(finalPath);
+            }
+            DownloadRegistry.Clear(key);
+
+            if (downloadBtn != null)
+            {
+                UpdateButtonState(downloadBtn, deleteBtn, episode, streamId);
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", "Could not delete file: " + ex.Message, "OK");
+        }
+    }
+
+    private async Task PlayLocal(string path)
+    {
+        await Shell.Current.GoToAsync(
+            $"{nameof(VideoPlayerPage)}" +
+            $"?VideoUrl={Uri.EscapeDataString(path)}" +
+            $"&ContentType=series");
+    }
+
+    private async Task PlayVideo(string url)
+    {
+        await Shell.Current.GoToAsync(
+            $"{nameof(VideoPlayerPage)}" +
+            $"?VideoUrl={Uri.EscapeDataString(url)}" +
+            $"&ContentType=series");
     }
 }

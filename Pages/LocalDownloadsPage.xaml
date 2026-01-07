@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MAXTV.Pages.LocalDownloadsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#0E1621"
+    Title="Local Downloads">
+
+    <Grid RowDefinitions="Auto,*">
+        <Label
+            Text="Downloaded Videos"
+            FontSize="24"
+            FontAttributes="Bold"
+            TextColor="White"
+            Margin="20" />
+
+        <CollectionView
+            Grid.Row="1"
+            x:Name="FilesCollection"
+            SelectionMode="Single"
+            SelectionChanged="OnSelectionChanged"
+            Margin="10">
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame
+                        BackgroundColor="#132235"
+                        BorderColor="#1E88E5"
+                        CornerRadius="8"
+                        Padding="15"
+                        Margin="0,0,0,10">
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                <Label
+                                    Text="{Binding Name}"
+                                    TextColor="White"
+                                    FontSize="18"
+                                    LineBreakMode="TailTruncation" />
+                                <Label
+                                    Text="{Binding DisplaySize}"
+                                    TextColor="#B0BEC5"
+                                    FontSize="14" />
+                            </VerticalStackLayout>
+
+                            <Label
+                                Grid.Column="1"
+                                Text="▶"
+                                TextColor="#1E88E5"
+                                FontSize="20"
+                                VerticalOptions="Center" />
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <Label
+                    Text="No downloaded files found."
+                    TextColor="Gray"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    FontSize="18" />
+            </CollectionView.EmptyView>
+
+        </CollectionView>
+    </Grid>
+</ContentPage>
